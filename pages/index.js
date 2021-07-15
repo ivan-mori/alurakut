@@ -4,6 +4,8 @@ import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet 
 import { ProfileRelationsBoxWrapper } from '../src/components/ProfileRelations';
 import React from 'react';
 
+
+//Configurações do SideBar
 function ProfileSidebar(propriedades){
   return(
     <Box as="aside">
@@ -22,13 +24,35 @@ function ProfileSidebar(propriedades){
   )
 }
 
+// Função que gera o box (por enquanto apenas de followers)
+function ProfileRelationsBox(propriedades){
+  return(
+    <ProfileRelationsBoxWrapper>
+      <h2 className="smallTitle">
+        {propriedades.title} ({propriedades.items.length})
+      </h2>
+      {console.log(propriedades.items.map)}
+    <ul>           
+        {propriedades.items.slice(0,6).map((itemAtual) =>{
+          return(
+            <li key={itemAtual.id}>
+              <a href={itemAtual.html_url} >
+                <img src={itemAtual.avatar_url} />
+                <span>{itemAtual.login}</span>
+              </a> 
+            </li>
+          )
+        })}
+      </ul>
+    </ProfileRelationsBoxWrapper> 
+  )
+}
+
+
+// 
 export default function Home() {
   const githubUser = 'ivan-mori';
-  const [comunidades, setComunidades] = React.useState([{
-    id: '1231241',
-    title: 'Eu odeio acordar cedo',
-    image: 'http://alurakut.vercel.app/capa-comunidade-01.jpg'
-  }]);
+  const [comunidades, setComunidades] = React.useState([]);
   const pessoasFavoritas = [
     'juunegreiros', 
     'omariosouto', 
@@ -37,6 +61,43 @@ export default function Home() {
     'marcobrunodev', 
     'felipefialho'
   ]
+  const [seguidores, setSeguidores] = React.useState([]);
+  // 0 -> Pegar o array de dados do github
+  React.useEffect(function() {
+    fetch('https://api.github.com/users/peas/followers')
+    .then(function (respostaDoServidor){
+      return respostaDoServidor.json();
+    })
+    .then(function (respostaCompleta){
+      setSeguidores(respostaCompleta);
+    })
+
+
+  //API graphQL
+    fetch('https://graphql.datocms.com/', {
+      method: 'POST',
+      headers: {
+        'Authorization' : 'b007f158a274c5ec766a971729a827',
+        'Content-Type' : 'application/json',
+        'Accept' : 'application/json',
+      },
+      body: JSON.stringify({ "query": `query {
+        allCommunities{
+          title
+          id
+          imageUrl
+          creatorSlug
+        }
+      }` })
+    })
+    .then((response) => response.json())
+    .then((respostaCompleta) => {
+      const comunidadesVindasDoDato = respostaCompleta.data.allCommunities
+      
+      setComunidades(comunidadesVindasDoDato)
+    })
+
+  }, [])
 
   return (
     <>
@@ -51,7 +112,7 @@ export default function Home() {
               Bem vindo(a)
             </h1>
 
-            <OrkutNostalgicIconSet />
+            <OrkutNostalgicIconSet confiavel="3" legal="1" sexy="3"/>
           </Box>
 
           <Box>
@@ -61,12 +122,28 @@ export default function Home() {
               const dadosDoForm = new FormData(e.target);
 
               const comunidade = {
-                id: new Date().toISOString(),
                 title: dadosDoForm.get('title'),
-                image: dadosDoForm.get('image'),
+                imageUrl: dadosDoForm.get('image'),
+                creatorSlug: githubUser
+
               } 
-              const comunidadesAtualizadas = [...comunidades, comunidade]
-              setComunidades(comunidadesAtualizadas)
+
+              fetch('/api/comunidades', {
+                method: 'POST',
+                headers:{
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(comunidade)
+              })
+              .then(async (response) =>{
+                const dados = await response.json();
+                console.log(dados.registroCriado);
+                const comunidade = dados.registroCriado;
+                const comunidadesAtualizadas = [...comunidades, comunidade]
+                setComunidades(comunidadesAtualizadas)
+              })
+
+
             }}>
               <div>
                 <input 
@@ -89,30 +166,13 @@ export default function Home() {
           </Box>
         </div>
         <div className="profileRelationsArea" style={{ gridArea: 'profileRelationsArea' }}>
+        <ProfileRelationsBox title="Seguidores" items={seguidores} />
         <ProfileRelationsBoxWrapper>
-          <h2 className="smallTitle">
-            Comunidades ({comunidades.length})
-          </h2>
-            <ul>           
-              {comunidades.map((itemAtual) =>{
-                return(
-                  <li id={itemAtual.id}>
-                    <a href={`/users/${itemAtual.title}`}>
-                      <img src={itemAtual.image} />
-                      <span>{itemAtual.title}</span>
-                    </a> 
-                  </li>
-                )
-              })}
-            </ul>
-        </ProfileRelationsBoxWrapper>
-
-          <ProfileRelationsBoxWrapper>
             <h2 className="smallTitle">
               Pessoas da comunidade ({pessoasFavoritas.length})
             </h2>
             <ul>           
-              {pessoasFavoritas.map((itemAtual) =>{
+              {pessoasFavoritas.slice(0,6).map((itemAtual) =>{
                 return(
                   <li key={itemAtual}>
                     <a href={`/users/${itemAtual}`} key={itemAtual}>
@@ -123,7 +183,27 @@ export default function Home() {
                 )
               })}
             </ul>
-          </ProfileRelationsBoxWrapper>
+        </ProfileRelationsBoxWrapper>
+
+        <ProfileRelationsBoxWrapper>
+          <h2 className="smallTitle">
+            Comunidades ({comunidades.length})
+          </h2>
+            <ul>           
+              {comunidades.slice(0,6).map((itemAtual) =>{
+                return(
+                  <li id={itemAtual.id}>
+                    <a href={`/comunities/${itemAtual.id}`}>
+                      <img src={itemAtual.imageUrl} />
+                      <span>{itemAtual.title}</span>
+                    </a> 
+                  </li>
+                )
+              })}
+            </ul>
+        </ProfileRelationsBoxWrapper>
+
+
         </div>
       </MainGrid>
     </>
